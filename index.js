@@ -1,5 +1,114 @@
         // teacher.js
 
+        // Add at the top with other variables
+let pollingInterval = null;
+const POLLING_DELAY = 5000; // 5 seconds
+
+// Function to start polling updates
+function startPollingUpdates() {
+    const currentSection = document.getElementById('section').value;
+    if (!currentSection) {
+        return;
+    }
+
+    // Clear any existing polling
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+    }
+
+    // Initial load
+    loadExistingAttendance();
+
+    // Set up polling
+    pollingInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`${API_URL}/attendance`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch attendance data');
+            }
+
+            const data = await response.json();
+            
+            // Filter data based on section
+            const newAttendanceData = Object.values(data || {}).filter(entry => 
+                entry.section === currentSection
+            );
+
+            // Sort by time in descending order
+            newAttendanceData.sort((a, b) => 
+                new Date(b.timeIn) - new Date(a.timeIn)
+            );
+
+            // Check if data has changed
+            const hasChanged = JSON.stringify(attendanceData) !== JSON.stringify(newAttendanceData);
+            
+            if (hasChanged) {
+                attendanceData = newAttendanceData;
+                updateAttendanceTable();
+            }
+        } catch (error) {
+            console.error('Error polling attendance data:', error);
+        }
+    }, POLLING_DELAY);
+}
+
+// Modified event listener for section input
+document.addEventListener('DOMContentLoaded', () => {
+    const sectionInput = document.getElementById('section');
+    sectionInput.addEventListener('blur', () => {
+        startPollingUpdates();
+    });
+    
+    // Start initial polling if section is already set
+    if (sectionInput.value) {
+        startPollingUpdates();
+    }
+});
+
+// Modify the updateAttendanceTable function to include animation
+function updateAttendanceTable() {
+    const tbody = document.getElementById('attendanceTable');
+    
+    // Create new table content
+    const newContent = attendanceData.map(entry => `
+        <tr class="fade-in">
+            <td>${entry.studentId}</td>
+            <td>${entry.name}</td>
+            <td>${entry.course}</td>
+            <td>${entry.section}</td>
+            <td>${new Date(entry.timeIn).toLocaleString()}</td>
+        </tr>
+    `).join('');
+    
+    // Only update if content has changed
+    if (tbody.innerHTML !== newContent) {
+        tbody.innerHTML = newContent;
+    }
+}
+
+// Clean up function to stop polling when needed
+function cleanupPolling() {
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+    }
+}
+
+// Add cleanup on page unload
+window.addEventListener('beforeunload', cleanupPolling);
+
+// Add cleanup when changing sections
+document.getElementById('section').addEventListener('change', () => {
+    cleanupPolling();
+    startPollingUpdates();
+});
+
         // Replace with your Netlify Function URL
         const API_URL = 'https://project-to-ipt01.netlify.app/.netlify/functions/api';
         let attendanceData = [];
