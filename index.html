@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="teacher.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div id="mainContent">
+        <h1>Attendance System</h1>
+        
+        <!-- Teacher Form -->
+        <div id="teacherForm">
+            <div class="form-group">
+                <label for="subject">Subject</label>
+                <input type="text" id="subject" required>
+            </div>
+            <div class="form-group">
+                <label for="section">Section</label>
+                <input type="text" id="section" required>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button onclick="generateQR()">Generate QR Code</button>
+            <button onclick="toggleScanner()">Toggle Scanner</button>
+            <button onclick="showExportOptions()">Download Records</button>
+        </div>
+
+        <!-- QR Code Display -->
+        <div id="qrCode"></div>
+
+        <!-- QR Scanner -->
+        <div id="reader" class="hidden"></div>
+
+        <!-- Attendance List -->
+        <div id="attendanceList">
+            <h2>Attendance List</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Student ID</th>
+                        <th>Name</th>
+                        <th>Course</th>
+                        <th>Section</th>
+                        <th>Time-in</th>
+                    </tr>
+                </thead>
+                <tbody id="attendanceTable">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="index.js"></script>
+</body>
+</html>
