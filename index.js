@@ -245,7 +245,7 @@ async function processStudentAttendance(studentId) {
         }
 
         // Function to export to CSV
-        function exportToCSV() {
+        async function exportToCSV() {
             const subject = document.getElementById('subject').value;
             const section = document.getElementById('section').value;
             const currentDate = new Date().toLocaleDateString();
@@ -265,6 +265,9 @@ async function processStudentAttendance(studentId) {
             link.href = URL.createObjectURL(blob);
             link.download = `Attendance_${currentDate.replace(/\//g, '-')}.csv`;
             link.click();
+
+            // Delete the exported data
+            await deleteAttendanceData(section);
         }
 
         // Function to load existing attendance data
