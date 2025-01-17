@@ -1,3 +1,5 @@
+        // teacher.js
+
         // Replace with your Netlify Function URL
         const API_URL = 'https://project-to-ipt01.netlify.app/.netlify/functions/api';
         let attendanceData = [];
@@ -16,11 +18,12 @@
                 });
                 return;
             }
-
+        
             const qrData = JSON.stringify({ 
                 subject, 
                 section, 
-                timestamp: new Date().toISOString() 
+                timestamp: new Date().toISOString(),
+                type: 'attendance' // Add type to identify QR code purpose
             });
             
             const qrCodeDiv = document.getElementById('qrCode');
@@ -31,6 +34,39 @@
                 width: 256,
                 height: 256
             });
+        }
+        
+        // New function to delete attendance data
+        async function deleteAttendanceData(section) {
+            try {
+                const response = await fetch(`${API_URL}/attendance/delete/${section}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+        
+                if (!response.ok) {
+                    throw new Error('Failed to delete attendance data');
+                }
+        
+                // Clear local data and update table
+                attendanceData = [];
+                updateAttendanceTable();
+        
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: 'Attendance data has been exported and deleted successfully!'
+                });
+            } catch (error) {
+                console.error('Error deleting attendance data:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to delete attendance data'
+                });
+            }
         }
 
         let scannerLocked = false; // Add this at the top with other global variables
@@ -167,12 +203,12 @@ async function processStudentAttendance(studentId) {
         }
 
         // Function to export to Excel
-        function exportToExcel() {
+        async function exportToExcel() {
             const subject = document.getElementById('subject').value;
             const section = document.getElementById('section').value;
             const currentDate = new Date().toLocaleDateString();
             const currentTime = new Date().toLocaleTimeString();
-
+        
             // Create worksheet data
             const ws_data = [
                 ['ATTENDANCE RECORD FOR'],
@@ -181,7 +217,7 @@ async function processStudentAttendance(studentId) {
                 [''], // Empty row
                 ['Student ID', 'Name', 'Course', 'Section', 'Time-in']
             ];
-
+        
             // Add attendance data
             attendanceData.forEach(entry => {
                 ws_data.push([
@@ -192,17 +228,20 @@ async function processStudentAttendance(studentId) {
                     new Date(entry.timeIn).toLocaleString()
                 ]);
             });
-
+        
             const ws = XLSX.utils.aoa_to_sheet(ws_data);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
-
+        
             // Auto-size columns
             const cols = ws_data[4].length;
             ws['!cols'] = Array(cols).fill({ wch: 15 });
-
+        
             // Save file
             XLSX.writeFile(wb, `Attendance_${currentDate.replace(/\//g, '-')}.xlsx`);
+        
+            // Delete the exported data
+            await deleteAttendanceData(section);
         }
 
         // Function to export to CSV
@@ -231,27 +270,30 @@ async function processStudentAttendance(studentId) {
         // Function to load existing attendance data
         async function loadExistingAttendance() {
             try {
+                const currentSection = document.getElementById('section').value;
+                if (!currentSection) {
+                    return;
+                }
+        
                 const response = await fetch(`${API_URL}/attendance`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json'
                     }
                 });
-
+        
                 if (!response.ok) {
-                    throw new Error('Failed to fetch attendance data');
+                    return;
                 }
-
+        
                 const data = await response.json();
-                attendanceData = Object.values(data || {});
+                // Filter data based on section
+                attendanceData = Object.values(data || {}).filter(entry => 
+                    entry.section === currentSection
+                );
                 updateAttendanceTable();
             } catch (error) {
                 console.error('Error loading attendance data:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Failed to load attendance data'
-                });
             }
         }
 
@@ -297,5 +339,9 @@ async function processStudentAttendance(studentId) {
     }
 }
 
-        // Load attendance data when the page loads
-        document.addEventListener('DOMContentLoaded', loadExistingAttendance);
+// Add event listener when the document loads
+document.addEventListener('DOMContentLoaded', () => {
+    const sectionInput = document.getElementById('section');
+    sectionInput.addEventListener('blur', loadExistingAttendance);
+    loadExistingAttendance(); // Initial load
+});
