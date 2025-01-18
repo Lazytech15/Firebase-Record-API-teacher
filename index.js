@@ -110,7 +110,7 @@ document.getElementById('section').addEventListener('change', () => {
 });
 
         // Replace with your Netlify Function URL
-        const API_URL = 'https://project-to-ipt01.netlify.app/.netlify/functions/api';
+        const API_URL = 'https://project-to-ipt01.netlify.app/.netlify/edge-functions/api';
         let attendanceData = [];
         let html5QrcodeScanner = null;
 
@@ -499,28 +499,49 @@ function showGoogleSheetsModal() {
             try {
                 const currentSection = document.getElementById('section').value;
                 if (!currentSection) {
+                    console.log('No section selected, skipping attendance load');
                     return;
                 }
         
-                const response = await fetch(`${API_URL}/attendance`, {
+                // Update API URL to use edge function endpoint
+                const edgeEndpoint = `${API_URL.replace('/.netlify/functions/', '/.netlify/edge-functions/')}/attendance`;
+                
+                console.log('Fetching from Edge Function:', edgeEndpoint);
+        
+                const response = await fetch(edgeEndpoint, {
                     method: 'GET',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     }
                 });
         
+                // Log response for debugging
+                console.log('Response status:', response.status);
+                
                 if (!response.ok) {
-                    return;
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
         
                 const data = await response.json();
+                console.log('Received data:', data);
+        
                 // Filter data based on section
                 attendanceData = Object.values(data || {}).filter(entry => 
                     entry.section === currentSection
                 );
+        
                 updateAttendanceTable();
             } catch (error) {
                 console.error('Error loading attendance data:', error);
+                // Show user-friendly error
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to load attendance data. Please try again.'
+                });
             }
         }
 
