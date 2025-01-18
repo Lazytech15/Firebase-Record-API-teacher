@@ -1,11 +1,5 @@
-        // teacher.js
-        const fetchConfig = {
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            credentials: 'include'
-        };
+  // teacher.js
+
         // Add at the top with other variables
         let pollingInterval = null;
         const POLLING_DELAY = 5000; // 5 seconds
@@ -30,7 +24,9 @@
                 try {
                     const response = await fetch(`${API_URL}/attendance`, {
                         method: 'GET',
-                        ...fetchConfig
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
                     });
         
                     if (!response.ok) {
@@ -154,7 +150,9 @@
                     try {
                         const response = await fetch(`${API_URL}/attendance/delete/${section}`, {
                             method: 'DELETE',
-                            ...fetchConfig
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
                         });
                 
                         if (!response.ok) {
@@ -184,10 +182,12 @@
         
         // Function to process student attendance
         async function processStudentAttendance(studentId) {
+            // If scanner is locked, return immediately
             if (scannerLocked) {
                 return;
             }
             
+            // Lock the scanner
             scannerLocked = true;
             
             try {
@@ -196,10 +196,23 @@
                     throw new Error('Please set the section first');
                 }
         
-                // Fetch student data
+                // Check if student already has attendance for today
+                const today = new Date().toLocaleDateString();
+                const existingAttendance = attendanceData.find(entry => 
+                    entry.studentId === studentId && 
+                    new Date(entry.timeIn).toLocaleDateString() === today
+                );
+        
+                if (existingAttendance) {
+                    throw new Error('Student attendance already recorded for today');
+                }
+        
+                // First, fetch student data
                 const studentResponse = await fetch(`${API_URL}/students/${studentId}`, {
                     method: 'GET',
-                    ...fetchConfig
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
         
                 if (!studentResponse.ok) {
@@ -208,7 +221,12 @@
         
                 const studentData = await studentResponse.json();
         
-                // Save attendance record
+                // Verify if student belongs to the current section
+                if (studentData.section !== currentSection) {
+                    throw new Error(`Student does not belong to section ${currentSection}`);
+                }
+        
+                // Create attendance entry
                 const attendanceEntry = {
                     studentId: studentData.studentId,
                     name: studentData.name,
@@ -218,9 +236,12 @@
                     subject: document.getElementById('subject').value
                 };
         
+                // Save attendance record
                 const attendanceResponse = await fetch(`${API_URL}/attendance`, {
                     method: 'POST',
-                    ...fetchConfig,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify(attendanceEntry)
                 });
         
@@ -390,11 +411,13 @@
                 
                         const response = await fetch(`${API_URL}/attendance`, {
                             method: 'GET',
-                            ...fetchConfig
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
                         });
                 
                         if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
+                            return;
                         }
                 
                         const data = await response.json();
