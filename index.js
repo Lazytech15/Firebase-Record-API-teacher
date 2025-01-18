@@ -293,14 +293,19 @@ async function processStudentAttendance(studentId) {
     }
 }
 
-                // New function to show export options
-                function showExportOptions() {
+        function showExportOptions() {
             Swal.fire({
                 title: 'Choose Export Format',
                 icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'XLSX',
-                cancelButtonText: 'CSV',
+                html: `
+                    <div class="flex flex-col space-y-4">
+                        <button class="btn btn-primary" onclick="Swal.clickConfirm()">Export to Excel (XLSX)</button>
+                        <button class="btn btn-info" onclick="Swal.clickCancel()">Export to CSV</button>
+                        <button class="btn btn-success" onclick="exportToGoogleSheets()">Export to Google Sheets</button>
+                    </div>
+                `,
+                showConfirmButton: false,
+                showCancelButton: false,
                 showCloseButton: true
             }).then((result) => {
                 if (result.isConfirmed) {
@@ -313,22 +318,30 @@ async function processStudentAttendance(studentId) {
 
         // Function to export to Excel
         async function exportToExcel() {
-            const subject = document.getElementById('subject').value;
+            const subject = document.getElementById('subject').value.toUpperCase();
             const section = document.getElementById('section').value;
             const currentDate = new Date().toLocaleDateString();
             const currentTime = new Date().toLocaleTimeString();
         
-            // Create worksheet data
+            // Create worksheet data with improved formatting
             const ws_data = [
-                ['ATTENDANCE RECORD FOR'],
-                [`Date: ${currentDate} Time: ${currentTime}`],
-                [`Subject: ${subject} Section: ${section}`],
-                [''], // Empty row
+                ['ATTENDANCE RECORD'],
+                [''],
+                ['Subject:', subject],
+                ['Section:', section],
+                ['Date:', currentDate],
+                ['Time:', currentTime],
+                [''],
+                ['STUDENT INFORMATION'],
                 ['Student ID', 'Name', 'Course', 'Section', 'Time-in']
             ];
         
-            // Add attendance data
-            attendanceData.forEach(entry => {
+            // Add attendance data sorted by time
+            const sortedData = [...attendanceData].sort((a, b) => 
+                new Date(b.timeIn) - new Date(a.timeIn)
+            );
+        
+            sortedData.forEach(entry => {
                 ws_data.push([
                     entry.studentId,
                     entry.name,
@@ -340,18 +353,88 @@ async function processStudentAttendance(studentId) {
         
             const ws = XLSX.utils.aoa_to_sheet(ws_data);
             const wb = XLSX.utils.book_new();
+        
+            // Apply styles
+            ws['!merges'] = [
+                { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Merge title cells
+                { s: { r: 7, c: 0 }, e: { r: 7, c: 4 } }  // Merge student info header
+            ];
+        
+            // Set column widths
+            ws['!cols'] = [
+                { wch: 15 }, // Student ID
+                { wch: 30 }, // Name
+                { wch: 15 }, // Course
+                { wch: 10 }, // Section
+                { wch: 20 }  // Time-in
+            ];
+        
             XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
+            XLSX.writeFile(wb, `Attendance_${subject}_${section}_${currentDate.replace(/\//g, '-')}.xlsx`);
         
-            // Auto-size columns
-            const cols = ws_data[4].length;
-            ws['!cols'] = Array(cols).fill({ wch: 15 });
-        
-            // Save file
-            XLSX.writeFile(wb, `Attendance_${currentDate.replace(/\//g, '-')}.xlsx`);
-        
-            // Delete the exported data
             await deleteAttendanceData(section);
         }
+        
+// Add this constant at the top of your file
+const TARGET_SPREADSHEET_ID = '1iqbpeZuEwor5cAxDTD_yCF6oHcGdux8xwlTnshVjElg/edit?gid=0#gid=0'; // Replace with your spreadsheet ID
+
+// Modified exportToGoogleSheets function
+async function exportToGoogleSheets() {
+    const subject = document.getElementById('subject').value.toUpperCase();
+    const section = document.getElementById('section').value;
+    const currentDate = new Date();
+    const sheetName = `${subject}_${section}_${currentDate.toISOString().split('T')[0]}`;
+    
+    try {
+        // Prepare the formatted data
+        const formattedData = {
+            subject,
+            section,
+            sheetName,
+            date: currentDate.toLocaleDateString(),
+            time: currentDate.toLocaleTimeString(),
+            data: attendanceData.sort((a, b) => new Date(b.timeIn) - new Date(a.timeIn))
+        };
+
+        // Send export request
+        const response = await fetch(`${API_URL}/export-to-sheets`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formattedData)
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to export to Google Sheets');
+        }
+
+        const result = await response.json();
+        
+        await Swal.fire({
+            icon: 'success',
+            title: 'Exported Successfully',
+            html: `
+                <p>Attendance data has been exported to the Google Spreadsheet.</p>
+                <p>Sheet name: ${sheetName}</p>
+                <a href="${result.spreadsheetUrl}" target="_blank" class="btn btn-primary mt-3">
+                    Open Spreadsheet
+                </a>
+            `
+        });
+
+        // Delete the exported data
+        await deleteAttendanceData(section);
+
+    } catch (error) {
+        console.error('Error exporting to Google Sheets:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Export Failed',
+            text: 'Failed to export to Google Sheets. Please try another format.'
+        });
+    }
+}
 
         // Function to export to CSV
         async function exportToCSV() {
