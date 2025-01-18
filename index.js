@@ -293,28 +293,28 @@ async function processStudentAttendance(studentId) {
     }
 }
 
-        function showExportOptions() {
-            Swal.fire({
-                title: 'Choose Export Format',
-                icon: 'question',
-                html: `
-                    <div class="flex flex-col space-y-4">
-                        <button class="btn btn-primary" onclick="Swal.clickConfirm()">Export to Excel (XLSX)</button>
-                        <button class="btn btn-info" onclick="Swal.clickCancel()">Export to CSV</button>
-                        <button class="btn btn-success" onclick="exportToGoogleSheets()">Export to Google Sheets</button>
-                    </div>
-                `,
-                showConfirmButton: false,
-                showCancelButton: false,
-                showCloseButton: true
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    exportToExcel();
-                } else if (result.dismiss === Swal.DismissReason.cancel) {
-                    exportToCSV();
-                }
-            });
+function showExportOptions() {
+    Swal.fire({
+        title: 'Choose Export Format',
+        icon: 'question',
+        html: `
+            <div class="flex flex-col space-y-4">
+                <button class="btn btn-primary" onclick="Swal.clickConfirm()">Export to Excel (XLSX)</button>
+                <button class="btn btn-info" onclick="Swal.clickCancel()">Export to CSV</button>
+                <button class="btn btn-success" onclick="Swal.close(); showGoogleSheetsModal()">Export to Google Sheets</button>
+            </div>
+        `,
+        showConfirmButton: false,
+        showCancelButton: false,
+        showCloseButton: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            exportToExcel();
+        } else if (result.dismiss === Swal.DismissReason.cancel) {
+            exportToCSV();
         }
+    });
+}
 
         // Function to export to Excel
         async function exportToExcel() {
@@ -375,65 +375,97 @@ async function processStudentAttendance(studentId) {
             await deleteAttendanceData(section);
         }
         
-// Add this constant at the top of your file
-const TARGET_SPREADSHEET_ID = '1iqbpeZuEwor5cAxDTD_yCF6oHcGdux8xwlTnshVjElg/edit?gid=0#gid=0'; // Replace with your spreadsheet ID
-
-// Modified exportToGoogleSheets function
-async function exportToGoogleSheets() {
-    const subject = document.getElementById('subject').value.toUpperCase();
-    const section = document.getElementById('section').value;
-    const currentDate = new Date();
-    const sheetName = `${subject}_${section}_${currentDate.toISOString().split('T')[0]}`;
-    
-    try {
-        // Prepare the formatted data
-        const formattedData = {
-            subject,
-            section,
-            sheetName,
-            date: currentDate.toLocaleDateString(),
-            time: currentDate.toLocaleTimeString(),
-            data: attendanceData.sort((a, b) => new Date(b.timeIn) - new Date(a.timeIn))
-        };
-
-        // Send export request
-        const response = await fetch(`${API_URL}/export-to-sheets`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formattedData)
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to export to Google Sheets');
+        async function exportToGoogleSheets(spreadsheetId) {
+            const subject = document.getElementById('subject').value.toUpperCase();
+            const section = document.getElementById('section').value;
+            const currentDate = new Date();
+            const sheetName = `${subject}_${section}_${currentDate.toISOString().split('T')[0]}`;
+            
+            try {
+                // Prepare the formatted data
+                const formattedData = {
+                    subject,
+                    section,
+                    sheetName,
+                    spreadsheetId, // Add spreadsheetId to the request
+                    date: currentDate.toLocaleDateString(),
+                    time: currentDate.toLocaleTimeString(),
+                    data: attendanceData.sort((a, b) => new Date(b.timeIn) - new Date(a.timeIn))
+                };
+        
+                // Send export request
+                const response = await fetch(`${API_URL}/export-to-sheets`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formattedData)
+                });
+        
+                if (!response.ok) {
+                    throw new Error('Failed to export to Google Sheets');
+                }
+        
+                const result = await response.json();
+                
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Exported Successfully',
+                    html: `
+                        <p>Attendance data has been exported to the Google Spreadsheet.</p>
+                        <p>Sheet name: ${sheetName}</p>
+                        <a href="https://docs.google.com/spreadsheets/d/${spreadsheetId}" target="_blank" class="btn btn-primary mt-3">
+                            Open Spreadsheet
+                        </a>
+                    `
+                });
+        
+                // Delete the exported data
+                await deleteAttendanceData(section);
+        
+            } catch (error) {
+                console.error('Error exporting to Google Sheets:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Export Failed',
+                    text: error.message || 'Failed to export to Google Sheets. Please try another format.'
+                });
+            }
         }
 
-        const result = await response.json();
-        
-        await Swal.fire({
-            icon: 'success',
-            title: 'Exported Successfully',
-            html: `
-                <p>Attendance data has been exported to the Google Spreadsheet.</p>
-                <p>Sheet name: ${sheetName}</p>
-                <a href="${result.spreadsheetUrl}" target="_blank" class="btn btn-primary mt-3">
-                    Open Spreadsheet
-                </a>
-            `
-        });
-
-        // Delete the exported data
-        await deleteAttendanceData(section);
-
-    } catch (error) {
-        console.error('Error exporting to Google Sheets:', error);
-        Swal.fire({
-            icon: 'error',
-            title: 'Export Failed',
-            text: 'Failed to export to Google Sheets. Please try another format.'
-        });
-    }
+// Add modal function to get spreadsheet ID
+function showGoogleSheetsModal() {
+    Swal.fire({
+        title: 'Export to Google Sheets',
+        html: `
+            <div class="mb-4">
+                <p class="mb-2 text-sm">Enter your Google Spreadsheet ID:</p>
+                <input 
+                    id="spreadsheetId" 
+                    class="w-full px-3 py-2 border rounded"
+                    placeholder="Enter spreadsheet ID from URL"
+                >
+                <p class="mt-2 text-xs text-gray-500">
+                    From your spreadsheet URL: docs.google.com/spreadsheets/d/<span class="text-blue-500">spreadsheet-id</span>/edit
+                </p>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Export',
+        focusConfirm: false,
+        preConfirm: () => {
+            const spreadsheetId = document.getElementById('spreadsheetId').value;
+            if (!spreadsheetId) {
+                Swal.showValidationMessage('Please enter a spreadsheet ID');
+                return false;
+            }
+            return spreadsheetId;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            exportToGoogleSheets(result.value);
+        }
+    });
 }
 
         // Function to export to CSV
