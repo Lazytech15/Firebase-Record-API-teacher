@@ -301,7 +301,6 @@
                     <div class="flex flex-col space-y-4">
                         <button class="btn btn-primary" onclick="Swal.clickConfirm()">Export to Excel (XLSX)</button>
                         <button class="btn btn-info" onclick="Swal.clickCancel()">Export to CSV</button>
-                        // <button class="btn btn-success" onclick="exportToGoogleSheets()">Export to Google Sheets</button>
                     </div>
                 `,
                 showConfirmButton: false,
@@ -315,6 +314,8 @@
                 }
             });
         }
+
+// <button class="btn btn-success" onclick="exportToGoogleSheets()">Export to Google Sheets</button>
         
                 // Function to export to Excel
                 async function exportToExcel() {
