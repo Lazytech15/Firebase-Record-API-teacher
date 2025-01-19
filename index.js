@@ -247,30 +247,30 @@ function initScanner() {
                 if (!sections.length) {
                     throw new Error('Please set at least one section');
                 }
-        
+            
                 const studentResponse = await fetch(`${API_URL}/students/${studentId}`);
                 if (!studentResponse.ok) {
                     throw new Error('Student not found');
                 }
-        
+            
                 const studentData = await studentResponse.json();
                 
                 // Check if student belongs to any of the specified sections
-                if (!sections.includes(studentData.section)) {
+                if (!sections.some(section => studentData.section === section)) {
                     throw new Error(`Student does not belong to sections: ${sections.join(',')}`);
                 }
-        
+            
                 // Check for existing attendance
                 const today = new Date().toLocaleDateString();
                 const existingAttendance = attendanceData.find(entry => 
                     entry.studentId === studentId && 
                     new Date(entry.timeIn).toLocaleDateString() === today
                 );
-        
+            
                 if (existingAttendance) {
                     throw new Error('Student attendance already recorded for today');
                 }
-        
+            
                 const attendanceEntry = {
                     studentId: studentData.studentId,
                     name: studentData.name,
@@ -279,17 +279,17 @@ function initScanner() {
                     timeIn: new Date().toISOString(),
                     subject: document.getElementById('subject').value
                 };
-        
+            
                 const attendanceResponse = await fetch(`${API_URL}/attendance`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(attendanceEntry)
                 });
-        
+            
                 if (!attendanceResponse.ok) {
                     throw new Error('Failed to save attendance');
                 }
-        
+            
                 attendanceData.push(attendanceEntry);
                 updateAttendanceTable();
                 
@@ -310,6 +310,7 @@ function initScanner() {
                 hideLoading();
             }
         }
+        
         
         function showExportOptions() {
             Swal.fire({
