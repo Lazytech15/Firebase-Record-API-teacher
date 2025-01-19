@@ -255,17 +255,16 @@ function initScanner() {
             
                 const studentData = await studentResponse.json();
                 
-                // Get the student's section
-                const studentSection = studentData.section;
-
-                console.log(studentSection);
+                // Get the student's section and split it into an array
+                const studentSections = studentData.section.split(',').map(s => s.trim());
                 
-                // Split the input sections by comma and check if the student's section matches any of them
-                const inputSections = studentSection.split(',');
-
-                console.log(inputSections);
-                if (!inputSections.includes(sections)) {
-                    throw new Error(`Student does not belong to sections: ${sections}`);
+                // Check if any of the required sections match with student's sections
+                const hasMatchingSection = sections.some(section => 
+                    studentSections.includes(section)
+                );
+        
+                if (!hasMatchingSection) {
+                    throw new Error(`Student does not belong to sections: ${sections.join(', ')}`);
                 }
             
                 // Check for existing attendance
@@ -283,7 +282,7 @@ function initScanner() {
                     studentId: studentData.studentId,
                     name: studentData.name,
                     course: studentData.course,
-                    section: studentSection,
+                    section: studentData.section,
                     timeIn: new Date().toISOString(),
                     subject: document.getElementById('subject').value
                 };
