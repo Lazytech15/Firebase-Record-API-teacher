@@ -255,9 +255,13 @@ function initScanner() {
             
                 const studentData = await studentResponse.json();
                 
-                // Check if student belongs to any of the specified sections
-                if (!sections.some(section => studentData.section === section)) {
-                    throw new Error(`Student does not belong to sections: ${sections.join(',')}`);
+                // Get the student's section
+                const studentSection = studentData.section;
+                
+                // Split the input sections by comma and check if the student's section matches any of them
+                const inputSections = sections.split(',');
+                if (!inputSections.includes(studentSection)) {
+                    throw new Error(`Student does not belong to sections: ${sections}`);
                 }
             
                 // Check for existing attendance
@@ -275,7 +279,7 @@ function initScanner() {
                     studentId: studentData.studentId,
                     name: studentData.name,
                     course: studentData.course,
-                    section: studentData.section,
+                    section: studentSection,
                     timeIn: new Date().toISOString(),
                     subject: document.getElementById('subject').value
                 };
@@ -310,6 +314,7 @@ function initScanner() {
                 hideLoading();
             }
         }
+        
         
         
         function showExportOptions() {
