@@ -239,7 +239,10 @@ function initScanner() {
         
         // Function to process student attendance
         async function processStudentAttendance(studentId) {
+            if (scannerLocked) return; // Prevent multiple concurrent scans
+            scannerLocked = true;
             showLoading();
+            
             try {
                 const currentSection = document.getElementById('section').value;
                 const sections = parseSections(currentSection);
@@ -258,12 +261,12 @@ function initScanner() {
                 // Get the student's section and split it into an array
                 const studentSections = studentData.section.split(',').map(s => s.trim());
                 
-                // Check if any of the required sections match with student's sections
-                const hasMatchingSection = sections.some(section => 
+                // Find the matching section
+                const matchingSection = sections.find(section => 
                     studentSections.includes(section)
                 );
         
-                if (!hasMatchingSection) {
+                if (!matchingSection) {
                     throw new Error(`Student does not belong to sections: ${sections.join(', ')}`);
                 }
             
@@ -282,7 +285,7 @@ function initScanner() {
                     studentId: studentData.studentId,
                     name: studentData.name,
                     course: studentData.course,
-                    section: studentData.section,
+                    section: matchingSection, // Use the matching section instead of all student sections
                     timeIn: new Date().toISOString(),
                     subject: document.getElementById('subject').value
                 };
@@ -303,7 +306,9 @@ function initScanner() {
                 await Swal.fire({
                     icon: 'success',
                     title: 'Success',
-                    text: 'Attendance recorded successfully!'
+                    text: 'Attendance recorded successfully!',
+                    timer: 1000,
+                    showConfirmButton: false
                 });
                 
             } catch (error) {
@@ -311,10 +316,16 @@ function initScanner() {
                 await Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: error.message
+                    text: error.message,
+                    timer: 1500,
+                    showConfirmButton: false
                 });
             } finally {
                 hideLoading();
+                // Add a small delay before unlocking the scanner
+                setTimeout(() => {
+                    scannerLocked = false;
+                }, 2000); // 2 second delay
             }
         }
         
