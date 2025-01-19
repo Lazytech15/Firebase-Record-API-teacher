@@ -479,7 +479,7 @@ function initScanner() {
                         updateAttendanceTable();
                     } catch (error) {
                         console.error('Error loading attendance data:', error);
-                        Swal.fire({
+                        await Swal.fire({
                             icon: 'error',
                             title: 'Error',
                             text: 'Failed to load attendance data'
@@ -488,7 +488,6 @@ function initScanner() {
                         hideLoading();
                     }
                 }
-                
         
                 // Function to update the attendance table
                 function updateAttendanceTable() {
@@ -540,52 +539,70 @@ function initScanner() {
         }
 
         // Add these functions at the beginning of your teacher.js file
-async function registerDomain() {
-    const API_URL = 'https://project-to-ipt01.netlify.app/.netlify/functions/api';
-    try {
-        const response = await fetch(`${API_URL}/register-domain`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                domain: window.location.origin
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to register domain');
+        async function registerDomain() {
+            const API_URL = 'https://project-to-ipt01.netlify.app/.netlify/functions/api';
+            try {
+                const response = await fetch(`${API_URL}/register-domain`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        domain: window.location.origin
+                    })
+                });
+        
+                // Handle both successful registration (200) and already registered (409) as success cases
+                if (response.ok || response.status === 409) {
+                    const result = await response.json();
+                    console.log('Domain registration status:', result);
+                    return true;
+                }
+        
+                throw new Error('Failed to register domain');
+            } catch (error) {
+                if (error.message.includes('Failed to fetch')) {
+                    console.warn('Network error during domain registration:', error);
+                    // Return true if we can't reach the server - we'll try the main request anyway
+                    return true;
+                }
+                console.error('Error registering domain:', error);
+                return false;
+            }
         }
 
-        const result = await response.json();
-        console.log('Domain registered successfully:', result);
-        return true;
-    } catch (error) {
-        console.error('Error registering domain:', error);
-        return false;
-    }
-}
-
-async function fetchWithRetry(url, options = {}, retryCount = 1) {
-    try {
-        const response = await fetch(url, options);
-        if (response.status === 403) {
-            if (retryCount > 0) {
-                // Try to register domain
-                const registered = await registerDomain();
-                if (registered) {
-                    // Retry the original request
+        async function fetchWithRetry(url, options = {}, retryCount = 1) {
+            try {
+                const response = await fetch(url, options);
+                
+                // If the request succeeds, return immediately
+                if (response.ok) {
+                    return response;
+                }
+                
+                // If we get a CORS error and have retries left
+                if (response.status === 403 && retryCount > 0) {
+                    console.log('Attempting domain registration...');
+                    const registered = await registerDomain();
+                    
+                    if (registered) {
+                        console.log('Domain registered/verified, retrying original request...');
+                        // Wait a short moment before retrying to allow CORS update
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        return fetchWithRetry(url, options, retryCount - 1);
+                    }
+                }
+                
+                return response;
+            } catch (error) {
+                if (error.message.includes('Failed to fetch') && retryCount > 0) {
+                    console.warn('Network error, retrying...', error);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                     return fetchWithRetry(url, options, retryCount - 1);
                 }
+                throw error;
             }
-            throw new Error('CORS error: Domain not allowed');
         }
-        return response;
-    } catch (error) {
-        console.error('Fetch error:', error);
-        throw error;
-    }
-}
 
 
         
