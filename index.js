@@ -31,6 +31,8 @@ function closeScannerModal() {
     }
 }
 
+
+
 // Section handling
 function parseSections(sectionInput) {
     return sectionInput.split(',').map(s => s.trim()).filter(s => s);
@@ -205,7 +207,7 @@ function initScanner() {
                 // New function to delete attendance data
                 async function deleteAttendanceData(section) {
                     try {
-                        const response = await fetch(`${API_URL}/attendance/delete/${section}`, {
+                        const response = await fetchWithRetry(`${API_URL}/attendance/delete/${section}`, {
                             method: 'DELETE',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -216,14 +218,13 @@ function initScanner() {
                             throw new Error('Failed to delete attendance data');
                         }
                 
-                        // Clear local data and update table
                         attendanceData = [];
                         updateAttendanceTable();
                 
                         await Swal.fire({
                             icon: 'success',
                             title: 'Success',
-                            text: 'Attendance data has been exported and deleted successfully!'
+                            text: 'Attendance data has been deleted successfully!'
                         });
                     } catch (error) {
                         console.error('Error deleting attendance data:', error);
@@ -234,12 +235,13 @@ function initScanner() {
                         });
                     }
                 }
+                
         
                 let scannerLocked = false; // Add this at the top with other global variables
         
         // Function to process student attendance
         async function processStudentAttendance(studentId) {
-            if (scannerLocked) return; // Prevent multiple concurrent scans
+            if (scannerLocked) return;
             scannerLocked = true;
             showLoading();
             
@@ -251,7 +253,7 @@ function initScanner() {
                     throw new Error('Please set at least one section');
                 }
             
-                const studentResponse = await fetch(`${API_URL}/students/${studentId}`);
+                const studentResponse = await fetchWithRetry(`${API_URL}/students/${studentId}`);
                 if (!studentResponse.ok) {
                     throw new Error('Student not found');
                 }
@@ -290,7 +292,7 @@ function initScanner() {
                     subject: document.getElementById('subject').value
                 };
             
-                const attendanceResponse = await fetch(`${API_URL}/attendance`, {
+                const attendanceResponse = await fetchWithRetry(`${API_URL}/attendance`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(attendanceEntry)
@@ -453,6 +455,7 @@ function initScanner() {
                     }
                 }
         
+
                 async function loadExistingAttendance() {
                     showLoading();
                     try {
@@ -463,15 +466,15 @@ function initScanner() {
                             return;
                         }
                 
-                        const response = await fetch(`${API_URL}/attendance`);
+                        const response = await fetchWithRetry(`${API_URL}/attendance`);
                         if (!response.ok) {
                             throw new Error('Failed to fetch attendance data');
                         }
                 
                         const data = await response.json();
-                        attendanceData = Object.values(data || {}).filter(entry => 
-                            sections.includes(entry.section)
-                        ).sort((a, b) => new Date(b.timeIn) - new Date(a.timeIn));
+                        attendanceData = Object.values(data || {})
+                            .filter(entry => sections.includes(entry.section))
+                            .sort((a, b) => new Date(b.timeIn) - new Date(a.timeIn));
                 
                         updateAttendanceTable();
                     } catch (error) {
@@ -535,11 +538,63 @@ function initScanner() {
                 }
             }
         }
+
+        // Add these functions at the beginning of your teacher.js file
+async function registerDomain() {
+    const API_URL = 'https://project-to-ipt01.netlify.app/.netlify/functions/api';
+    try {
+        const response = await fetch(`${API_URL}/register-domain`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                domain: window.location.origin
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to register domain');
+        }
+
+        const result = await response.json();
+        console.log('Domain registered successfully:', result);
+        return true;
+    } catch (error) {
+        console.error('Error registering domain:', error);
+        return false;
+    }
+}
+
+async function fetchWithRetry(url, options = {}, retryCount = 1) {
+    try {
+        const response = await fetch(url, options);
+        if (response.status === 403) {
+            if (retryCount > 0) {
+                // Try to register domain
+                const registered = await registerDomain();
+                if (registered) {
+                    // Retry the original request
+                    return fetchWithRetry(url, options, retryCount - 1);
+                }
+            }
+            throw new Error('CORS error: Domain not allowed');
+        }
+        return response;
+    } catch (error) {
+        console.error('Fetch error:', error);
+        throw error;
+    }
+}
+
+
         
 // Event listeners
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+        // Try to register domain on page load
+        await registerDomain();
+
     const sectionInput = document.getElementById('section');
-    
     sectionInput.addEventListener('input', updateSectionChips);
     sectionInput.addEventListener('blur', () => {
         startPollingUpdates();
