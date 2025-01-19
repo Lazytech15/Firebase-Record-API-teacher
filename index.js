@@ -263,6 +263,7 @@ function initScanner() {
                 if (!inputSections.includes(sections)) {
                     throw new Error(`Student does not belong to sections: ${sections}`);
                 }
+                
             
                 // Check for existing attendance
                 const today = new Date().toLocaleDateString();
