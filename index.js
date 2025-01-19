@@ -259,8 +259,8 @@ function initScanner() {
                 const studentSection = studentData.section;
                 
                 // Split the input sections by comma and check if the student's section matches any of them
-                const inputSections = sections.split(',');
-                if (!inputSections.includes(studentSection)) {
+                const inputSections = studentSection.split(',');
+                if (!inputSections.includes(sections)) {
                     throw new Error(`Student does not belong to sections: ${sections}`);
                 }
             
