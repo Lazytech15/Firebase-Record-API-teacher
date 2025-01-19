@@ -257,13 +257,16 @@ function initScanner() {
                 
                 // Get the student's section
                 const studentSection = studentData.section;
+
+                console.log(studentSection);
                 
                 // Split the input sections by comma and check if the student's section matches any of them
                 const inputSections = studentSection.split(',');
+
+                console.log(inputSections);
                 if (!inputSections.includes(sections)) {
                     throw new Error(`Student does not belong to sections: ${sections}`);
                 }
-                
             
                 // Check for existing attendance
                 const today = new Date().toLocaleDateString();
