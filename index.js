@@ -179,28 +179,20 @@ function initScanner() {
                     const section = document.getElementById('section').value;
                     
                     if (!subject || !section) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Invalid Input',
-                            text: 'Please fill in both subject and section!'
-                        });
+                        alert('Please fill in both subject and section!');
                         return;
                     }
                 
-                    const qrData = JSON.stringify({ 
-                        subject, 
-                        section, 
-                        timestamp: new Date().toISOString(),
-                        type: 'attendance'
-                    });
+                    const qrData = section; 
                     
                     const qrCodeDiv = document.getElementById('qrCode');
                     qrCodeDiv.innerHTML = '';
                     
                     new QRCode(qrCodeDiv, {
                         text: qrData,
-                        width: 256,
-                        height: 256
+                        width: 500,
+                        height: 500,
+                        correctLevel: QRCode.CorrectLevel.L  // Lower error correction = fewer dots
                     });
                 }
                 
