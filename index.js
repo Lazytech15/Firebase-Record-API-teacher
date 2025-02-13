@@ -110,7 +110,7 @@ function initScanner() {
         
                     // Check if data has changed
                     const hasChanged = JSON.stringify(attendanceData) !== JSON.stringify(newAttendanceData);
-                    
+                    console.log('Polling updates:', newAttendanceData);
                     if (hasChanged) {
                         attendanceData = newAttendanceData;
                         updateAttendanceTable();
@@ -175,7 +175,7 @@ function initScanner() {
         
                 // Function to generate QR code
                 function generateQR() {
-                    const subject = document.getElementById('subject').value;
+                    const subject = document.getElementById('course_code').value;
                     const section = document.getElementById('section').value;
                     
                     if (!subject || !section) {
@@ -183,15 +183,15 @@ function initScanner() {
                         return;
                     }
                 
-                    const qrData = section; 
-                    
+                    // const qrData = section; 
+                    const qrData = `${subject},${section}`; 
                     const qrCodeDiv = document.getElementById('qrCode');
                     qrCodeDiv.innerHTML = '';
                     
                     new QRCode(qrCodeDiv, {
                         text: qrData,
-                        width: 500,
-                        height: 500,
+                        width: 400,
+                        height: 400,
                         correctLevel: QRCode.CorrectLevel.L  // Lower error correction = fewer dots
                     });
                 }
@@ -280,8 +280,8 @@ function initScanner() {
                     name: studentData.name,
                     course: studentData.course,
                     section: matchingSection, // Use the matching section instead of all student sections
+                    course_code: document.getElementById('course_code').value,
                     timeIn: new Date().toISOString(),
-                    subject: document.getElementById('subject').value
                 };
             
                 const attendanceResponse = await fetch(`${API_URL}/attendance`, {
@@ -293,6 +293,7 @@ function initScanner() {
                 if (!attendanceResponse.ok) {
                     throw new Error('Failed to save attendance');
                 }
+                console.log('Attendance recorded:', attendanceEntry);
             
                 attendanceData.push(attendanceEntry);
                 updateAttendanceTable();
@@ -351,7 +352,7 @@ function initScanner() {
                 async function exportToExcel() {
                     showLoading();
                     try {
-                        const subject = document.getElementById('subject').value.toUpperCase();
+                        const subject = document.getElementById('course_code').value.toUpperCase();
                         const sections = parseSections(document.getElementById('section').value);
                         const currentDate = new Date().toLocaleDateString();
                         const currentTime = new Date().toLocaleTimeString();
@@ -417,7 +418,7 @@ function initScanner() {
                 async function exportToCSV() {
                     showLoading();
                     try {
-                        const subject = document.getElementById('subject').value;
+                        const subject = document.getElementById('course_code').value;
                         const sections = parseSections(document.getElementById('section').value);
                         const currentDate = new Date().toLocaleDateString();
                         const currentTime = new Date().toLocaleTimeString();
