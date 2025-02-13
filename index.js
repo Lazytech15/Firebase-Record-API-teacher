@@ -80,10 +80,11 @@ function initScanner() {
         
         // Function to start polling updates
         function startPollingUpdates() {
+            const courseCode = document.getElementById('course_code').value;
             const currentSection = document.getElementById('section').value;
             const sections = parseSections(currentSection);
             
-            if (!sections.length) {
+            if (!sections.length || !courseCode) {
                 return;
             }
         
@@ -98,7 +99,7 @@ function initScanner() {
             // Set up polling
             pollingInterval = setInterval(async () => {
                 try {
-                    const response = await fetch(`${API_URL}/attendance`);
+                    const response = await fetch(`${API_URL}/attendance/${courseCode}`);
                     if (!response.ok) {
                         throw new Error('Failed to fetch attendance data');
                     }
@@ -110,7 +111,6 @@ function initScanner() {
         
                     // Check if data has changed
                     const hasChanged = JSON.stringify(attendanceData) !== JSON.stringify(newAttendanceData);
-                    console.log('Polling updates:', newAttendanceData);
                     if (hasChanged) {
                         attendanceData = newAttendanceData;
                         updateAttendanceTable();
@@ -233,29 +233,26 @@ function initScanner() {
         
         // Function to process student attendance
         async function processStudentAttendance(studentId) {
-            if (scannerLocked) return; // Prevent multiple concurrent scans
+            if (scannerLocked) return;
             scannerLocked = true;
             showLoading();
             
             try {
+                const courseCode = document.getElementById('course_code').value;
                 const currentSection = document.getElementById('section').value;
                 const sections = parseSections(currentSection);
                 
-                if (!sections.length) {
-                    throw new Error('Please set at least one section');
+                if (!sections.length || !courseCode) {
+                    throw new Error('Please set both course code and section');
                 }
-            
+        
                 const studentResponse = await fetch(`${API_URL}/students/${studentId}`);
                 if (!studentResponse.ok) {
                     throw new Error('Student not found');
                 }
-            
+        
                 const studentData = await studentResponse.json();
-                
-                // Get the student's section and split it into an array
                 const studentSections = studentData.section.split(',').map(s => s.trim());
-                
-                // Find the matching section
                 const matchingSection = sections.find(section => 
                     studentSections.includes(section)
                 );
@@ -263,38 +260,37 @@ function initScanner() {
                 if (!matchingSection) {
                     throw new Error(`Student does not belong to sections: ${sections.join(', ')}`);
                 }
-            
+        
                 // Check for existing attendance
                 const today = new Date().toLocaleDateString();
                 const existingAttendance = attendanceData.find(entry => 
                     entry.studentId === studentId && 
                     new Date(entry.timeIn).toLocaleDateString() === today
                 );
-            
+        
                 if (existingAttendance) {
                     throw new Error('Student attendance already recorded for today');
                 }
-            
+        
                 const attendanceEntry = {
                     studentId: studentData.studentId,
                     name: studentData.name,
                     course: studentData.course,
-                    section: matchingSection, // Use the matching section instead of all student sections
-                    course_code: document.getElementById('course_code').value,
+                    section: matchingSection,
+                    course_code: courseCode,
                     timeIn: new Date().toISOString(),
                 };
-            
-                const attendanceResponse = await fetch(`${API_URL}/attendance`, {
+        
+                const attendanceResponse = await fetch(`${API_URL}/attendance/${courseCode}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(attendanceEntry)
                 });
-            
+        
                 if (!attendanceResponse.ok) {
                     throw new Error('Failed to save attendance');
                 }
-                console.log('Attendance recorded:', attendanceEntry);
-            
+        
                 attendanceData.push(attendanceEntry);
                 updateAttendanceTable();
                 
@@ -317,10 +313,9 @@ function initScanner() {
                 });
             } finally {
                 hideLoading();
-                // Add a small delay before unlocking the scanner
                 setTimeout(() => {
                     scannerLocked = false;
-                }, 2000); // 2 second delay
+                }, 2000);
             }
         }
         
@@ -451,22 +446,23 @@ function initScanner() {
                 async function loadExistingAttendance() {
                     showLoading();
                     try {
+                        const courseCode = document.getElementById('course_code').value;
                         const currentSection = document.getElementById('section').value;
                         const sections = parseSections(currentSection);
                         
-                        if (!sections.length) {
+                        if (!sections.length || !courseCode) {
                             return;
                         }
                 
-                        const response = await fetch(`${API_URL}/attendance`);
+                        const response = await fetch(`${API_URL}/attendance/${courseCode}`);
                         if (!response.ok) {
                             throw new Error('Failed to fetch attendance data');
                         }
                 
                         const data = await response.json();
-                        attendanceData = Object.values(data || {}).filter(entry => 
-                            sections.includes(entry.section)
-                        ).sort((a, b) => new Date(b.timeIn) - new Date(a.timeIn));
+                        attendanceData = Object.values(data || {})
+                            .filter(entry => sections.includes(entry.section))
+                            .sort((a, b) => new Date(b.timeIn) - new Date(a.timeIn));
                 
                         updateAttendanceTable();
                     } catch (error) {
