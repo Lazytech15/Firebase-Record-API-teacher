@@ -197,9 +197,9 @@ function initScanner() {
                 }
                 
                 // New function to delete attendance data
-                async function deleteAttendanceData(section) {
+                async function deleteAttendanceData(courseCode, section) {
                     try {
-                        const response = await fetch(`${API_URL}/attendance/delete/${section}`, {
+                        const response = await fetch(`${API_URL}/attendance/delete/${courseCode}/${section}`, {
                             method: 'DELETE',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -207,8 +207,10 @@ function initScanner() {
                         });
                 
                         if (!response.ok) {
-                            throw new Error('Failed to delete attendance data');
+                            throw new Error(`Failed to delete attendance data: ${response.statusText}`);
                         }
+                
+                        const result = await response.json();
                 
                         // Clear local data and update table
                         attendanceData = [];
@@ -224,7 +226,7 @@ function initScanner() {
                         Swal.fire({
                             icon: 'error',
                             title: 'Error',
-                            text: 'Failed to delete attendance data'
+                            text: error.message || 'Failed to delete attendance data'
                         });
                     }
                 }
@@ -402,9 +404,10 @@ function initScanner() {
                         XLSX.writeFile(wb, `Attendance_${subject}_${sections.join('-')}_${currentDate.replace(/\//g, '-')}.xlsx`);
                 
                         // Delete exported data
-                        for (const section of sections) {
-                            await deleteAttendanceData(section);
-                        }
+                        // for (const subjects of subject) {
+                            
+                        // }
+                        await deleteAttendanceData(subject, sections);
                     } finally {
                         hideLoading();
                     }
@@ -435,9 +438,10 @@ function initScanner() {
                         link.click();
                 
                         // Delete exported data
-                        for (const section of sections) {
-                            await deleteAttendanceData(section);
-                        }
+                        // for (const subjects of subject) {
+                            
+                        // }
+                        await deleteAttendanceData(subject, sections);
                     } finally {
                         hideLoading();
                     }
